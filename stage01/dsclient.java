@@ -5,19 +5,19 @@ public class dsclient {
     public static void main(String[] args) {
 
         try {
-            // Establish a socket connection
+            // Establish a socket connection to the server-side simulator
             Socket socket = new Socket("localhost", 50000);
             // Set up input and output streams for the socket
             DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
             BufferedReader inputStream = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
             // Connect to the data server
-            // Send HELO message
+            // Send HELO message to initiate communication
             outputStream.write(("HELO\n").getBytes());
             outputStream.flush();
             String receivedMsg = (String) inputStream.readLine();
 
-            // Send AUTH username
+            // Send AUTH username to authenticate the client
             String userName = System.getProperty("user.name");
             outputStream.write(("AUTH " + userName + "\n").getBytes());
             outputStream.flush();
@@ -30,7 +30,8 @@ public class dsclient {
             boolean firstTime = true;
             int currServer = 0;
 
-            while (true) {
+            while (true) { 
+                // Send REDY message to receive the next job from the server
                 outputStream.write(("REDY\n").getBytes());
                 outputStream.flush();
                 receivedMsg = inputStream.readLine();
@@ -39,17 +40,18 @@ public class dsclient {
                 if (receivedMsg.equals("NONE"))
                     break;
 
-                // Get the job type and ID
+                // Get the job type and ID from the received message
                 String[] jobData = receivedMsg.split(" ");
                 String jobType = jobData[0];
                 String jobId = jobData[2];
 
                 // If the job type is JCPL, continue to the next iteration
-                if (jobType.equals("JCPL"))
+                if (jobType.equals("JCPL")) // JCPL - provide the information on most recent job completion
                     continue;
 
+                // Request server information from the server-side simulator for the first job
                 if (firstTime) {
-                    outputStream.write(("GETS All\n").getBytes());
+                    outputStream.write(("GETS All\n").getBytes()); // GETS - request information on all servers
                     outputStream.flush();
                     receivedMsg = (String) inputStream.readLine();
 
@@ -59,6 +61,7 @@ public class dsclient {
                     String[] serverListInfo = receivedMsg.split(" ");
                     int numServers = Integer.parseInt(serverListInfo[1]);
 
+                    // Iterate through the server list and find the largest server type
                     for (int i = 0; i < numServers; i++) {
                         receivedMsg = (String) inputStream.readLine();
 
@@ -84,18 +87,20 @@ public class dsclient {
 
                 // Schedule the job if it's a JOBN type
                 if (jobType.equals("JOBN")) {
-                    String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n";
+                    // Send SCHD message to schedule the job on the server with the largest core count
+                    String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n"; // SCHD - schedule a job on a server
                     outputStream.write(scheduleMsg.getBytes());
-                    outputStream.flush();
+
+                    outputStream.flush(); //
                     currServer++;
                     currServer = currServer % serverCount;
                     receivedMsg = inputStream.readLine();
                 }
             }
 
-            // Terminate the simulation gracefully
+            // Terminate the simulation gracefully by sending the QUIT message
             outputStream.write(("QUIT\n").getBytes());
-            outputStream.flush();
+            outputStream.flush(); // Immediately write the message to the output stream
             receivedMsg = inputStream.readLine();
 
             inputStream.close();

@@ -1,0 +1,66 @@
+dsclient.class
+./S1testConfigs/ds-S1-config01--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+./S1testConfigs/ds-S1-config02--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+./S1testConfigs/ds-S1-config03--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+./S1testConfigs/ds-S1-config04--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+./S1testConfigs/ds-S1-config05--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+./S1testConfigs/ds-S1-config06--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+./S1testConfigs/ds-S1-config07--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+./S1testConfigs/ds-S1-config08--wk6.xml
+----------------
+running the reference implementation (./ds-client)...
+# ds-sim reference client 28-Feb, 2023 @ MQ
+# Client-side simulator started with './ds-client -a lrr -n'
+running your implementation (dsclient.class)...
+PASSED!
+============
+testing done! check ./S1testConfigs/stage1.diff

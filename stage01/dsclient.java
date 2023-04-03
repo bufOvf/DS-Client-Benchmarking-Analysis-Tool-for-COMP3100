@@ -2,127 +2,107 @@ import java.io.*;
 import java.net.*;
 
 public class dsclient {
+    public static void main(String[] args) {
 
-  // Function to read messages (Server commands)
-  public static String readMessage(BufferedReader reader) throws IOException {
-    String message = reader.readLine();
-    System.out.println("RCVD " + message);
-    return message;
-  }
+        try {
+            // Establish a socket connection
+            Socket socket = new Socket("localhost", 50000);
+            // Set up input and output streams for the socket
+            DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+            BufferedReader inputStream = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-  // Function to send messages (Client commands)
-  public static void sendMessage(String messageOut, DataOutputStream out) throws IOException {
-    out.write(messageOut.getBytes());
-    out.flush();
-    System.out.print("SENT " + messageOut);
-  }
+            // Connect to the data server
+            // Send HELO message
+            outputStream.write(("HELO\n").getBytes());
+            outputStream.flush();
+            String receivedMsg = (String) inputStream.readLine();
 
-  // Function to start HANDSHAKE messages (HELO -> OK) and Authentication (AUTH ->
-  // OK)
-  public static void heloAuth(BufferedReader reader, DataOutputStream out) throws IOException {
-    sendMessage("HELO\n", out);
-    readMessage(reader);
-    sendMessage("AUTH " + System.getProperty("user.name") + "\n", out);
-    readMessage(reader);
-  }
+            // Send AUTH username
+            String userName = System.getProperty("user.name");
+            outputStream.write(("AUTH " + userName + "\n").getBytes());
+            outputStream.flush();
+            receivedMsg = (String) inputStream.readLine();
 
-  // Function to send QUIT message and close input stream, output stream, and
-  // socket
-  public static void quitAndClose(BufferedReader reader, DataOutputStream out, Socket socket) throws IOException {
-    sendMessage("QUIT\n", out);
-    readMessage(reader);
-    reader.close();
-    out.close();
-    socket.close();
-  }
+            // Variables for finding the server type and ID with the most cores
+            int maxCores = 0;
+            int serverCount = 0;
+            String largestServerType = "";
+            boolean firstTime = true;
+            int currServer = 0;
 
-  public static void main(String args[]) {
-    try {
-      Socket socket = new Socket("localhost", 50000);
+            while (true) {
+                outputStream.write(("REDY\n").getBytes());
+                outputStream.flush();
+                receivedMsg = inputStream.readLine();
 
-      // Print connection details
-      System.out.println("# Target IP:" + socket.getInetAddress() + " Target Port: " + socket.getPort());
-      System.out.println("# Local IP:" + socket.getLocalAddress() + " Local Port: " + socket.getLocalPort());
-      System.out.println("# Connection Established...");
+                // If the job type is NONE, there are no more jobs and the loop should be exited
+                if (receivedMsg.equals("NONE"))
+                    break;
 
-      // Initialize reader and output stream
-      BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-      DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+                // Get the job type and ID
+                String[] jobData = receivedMsg.split(" ");
+                String jobType = jobData[0];
+                String jobId = jobData[2];
 
-      // Perform handshake and authentication
-      heloAuth(reader, out);
+                // If the job type is JCPL, continue to the next iteration
+                if (jobType.equals("JCPL"))
+                    continue;
 
-      // Initialize variables for message and server details
-      String currentServerMessage = "";
-      String largestServerType = "";
-      int largestServerCores = 0;
+                if (firstTime) {
+                    outputStream.write(("GETS All\n").getBytes());
+                    outputStream.flush();
+                    receivedMsg = (String) inputStream.readLine();
 
-      // Loop until server message is NONE
-      while (!currentServerMessage.contains("NONE")) {
-        System.out.println("# in while not none loop");
+                    outputStream.write(("OK\n").getBytes());
+                    outputStream.flush();
 
-        // Send REDY message to the server
-        sendMessage("REDY\n", out);
-        currentServerMessage = readMessage(reader);
-        
-        // Send GETS message to the server for capable servers
-        if (currentServerMessage.contains("JOBN")) {
-          System.out.println("# Received JOBN message: " + currentServerMessage);
-          String[] javaArrayJobn = currentServerMessage.split(" ");
-          if (javaArrayJobn.length >= 7) {
-            sendMessage("GETS Capable " + javaArrayJobn[4] + " " + javaArrayJobn[5] + " " + javaArrayJobn[6] + "\n",
-                out);
-          } else {
-            System.out.println("# Invalid JOBN message: " + currentServerMessage);
-          }
+                    String[] serverListInfo = receivedMsg.split(" ");
+                    int numServers = Integer.parseInt(serverListInfo[1]);
 
-          // Receive server message for capable servers
-          currentServerMessage = readMessage(reader);
-          // System.out.println("GETS Server Comment: " + currentServerMessage);
+                    for (int i = 0; i < numServers; i++) {
+                        receivedMsg = (String) inputStream.readLine();
 
-          // Get DATA n n from server message, then send OK message to server
-          if (currentServerMessage.contains("DATA")) {
-            sendMessage("OK\n", out);
-            String[] javaArrayData = currentServerMessage.split(" ");
-            int nRecs = Integer.parseInt(javaArrayData[1]);
-            String[] servers = new String[nRecs];
-            for (int i = 0; i < nRecs; i++) {
-              currentServerMessage = readMessage(reader);
-              servers[i] = currentServerMessage;
-            }
+                        // Find the largest server type and ID
+                        String[] serverData = receivedMsg.split(" ");
+                        String serverType = serverData[0];
+                        int coreCount = Integer.parseInt(serverData[4]);
 
-            // Send OK message to server once all servers have been parsed
-            sendMessage("OK\n", out);
-            
+                        if (coreCount > maxCores) {
+                            largestServerType = serverType;
+                            maxCores = coreCount;
+                            serverCount = 1;
+                        } else if (serverType.equals(largestServerType)) {
+                            serverCount++;
+                        }
+                    }
 
-            // Loop through servers array to find server with most cores
-            for (String server : servers) {
-              String[] serverIdx = server.split(" ");
-              if (serverIdx.length >= 5) { // Ensure that there are enough elements to parse cores
-                int serverCores = Integer.parseInt(serverIdx[4]);
-                if (serverCores > largestServerCores) {
-                  largestServerType = serverIdx[0];
-                  largestServerCores = serverCores;
+                    outputStream.write(("OK\n").getBytes());
+                    outputStream.flush();
+                    receivedMsg = (String) inputStream.readLine();
                 }
-              }
+                firstTime = false;
+
+                // Schedule the job if it's a JOBN type
+                if (jobType.equals("JOBN")) {
+                    String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n";
+                    outputStream.write(scheduleMsg.getBytes());
+                    outputStream.flush();
+                    currServer++;
+                    currServer = currServer % serverCount;
+                    receivedMsg = inputStream.readLine();
+                }
             }
 
-            // Schedule the job with the server with the most cores
-            currentServerMessage = readMessage(reader);
-            if (currentServerMessage.equals(".")) {
-              sendMessage("SCHD " + javaArrayJobn[2] + " " + largestServerType + " 0\n", out);
-              currentServerMessage = readMessage(reader);
-            }
+            // Terminate the simulation gracefully
+            outputStream.write(("QUIT\n").getBytes());
+            outputStream.flush();
+            receivedMsg = inputStream.readLine();
 
-          }
+            inputStream.close();
+            outputStream.close();
+            socket.close();
+        } catch (Exception e) {
+            System.out.println(e);
         }
-
-      }
-
-      // Send QUIT message and close input stream, output stream, and socket
-      quitAndClose(reader, out, socket);
-    } catch (IOException e) {
-      System.out.println("Listen :" + e.getMessage());
     }
-  }
 }

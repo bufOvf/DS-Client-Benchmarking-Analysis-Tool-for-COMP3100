@@ -20,50 +20,42 @@ public class dsClient {
     private String serverLoopMsg = "";
     private String optimalServerType = "";
     private String optimalServerID = "";
-
     // These arrays are used to split server messages into separate parts for further analysis.
     private String[] jobTypeArray;
     private String[] recordsArray;
     private String[] optimalServerArray;
-
     // Constructor establishes connection to the server.
     public dsClient(String address, int port) throws Exception {
         clientSocket = new Socket(address, port);
         outStream = new DataOutputStream(clientSocket.getOutputStream());
         inStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
     }
-
     public static void main(String[] args) throws Exception {
         // Instantiate the client and execute its main functionality, then close the client connection.
         dsClient client = new dsClient("localhost", 50000);
         client.executeClient();
         client.close();
     }
-
     // Method to close the client socket and streams once operations are complete.
     public void close() throws Exception {
         clientSocket.close();
         inStream.close();
         outStream.close();
     }
-
     // Main function to execute the client operations.
     public void executeClient() throws Exception {
         handshakeAndAuth();  // Initial connection handshake and user authentication.
         jobHandler();  // Handles job scheduling operations.
     }
-
     // Initial handshake and authentication function.
     private void handshakeAndAuth() throws Exception {
         sendMessage("HELO");  // Send initial handshake message.
         serverMessage = read();  // Receive server response.
-
         // Get the username from the system properties and send it for authentication.
         String clientUsername = System.getProperty("user.name");
         sendMessage("AUTH " + clientUsername);
         serverMessage = read();  // Receive server response.
     }
-
     // Job handling function which iterates until no jobs are left.
     private void jobHandler() throws Exception {
         while (!currentJobType.equals("NONE")) {
@@ -74,7 +66,6 @@ public class dsClient {
         sendMessage("QUIT");
         read();
     }
-
     // Function to handle a single job.
     private void handleJob() throws Exception {
         sendMessage("REDY");  // Send ready signal to the server.
@@ -100,12 +91,10 @@ public class dsClient {
             }
         }
     }
-
     // Check if the job is complete or none.
     private boolean jobCompleteOrNone() {
         return currentJobType.equals("JCPL") || currentJobType.equals("NONE");
     }
-
     // Manage job availability by asking the server for available resources.
     private void manageJobAvailability() throws Exception {
         sendMessage("GETS Avail " + jobTypeArray[4] + " " + jobTypeArray[5] + " " + jobTypeArray[6]);
@@ -114,7 +103,6 @@ public class dsClient {
         serverCount = Integer.parseInt(recordsArray[1]);
         sendMessage("OK");
     }
-
     // Manage job capability by asking the server for servers capable of handling the job.
     private void manageJobCapability() throws Exception {
         read();
@@ -124,7 +112,6 @@ public class dsClient {
         serverCount = Integer.parseInt(recordsArray[1]);
         sendMessage("OK");
     }
-
     // Process the server's response on availability.
     private void processServerAvailability() throws Exception {
         serverMessage = read();
@@ -139,14 +126,12 @@ public class dsClient {
         sendMessage("OK");
         read();
     }
-
     // Schedule a job by sending the scheduling message to the server.
     private void scheduleJob() throws Exception {
         sendMessage("SCHD " + jobCounter + " " + optimalServerType + " " + optimalServerID);
         read();
         jobCounter++;
     }
-
     // Send a message to the server.
     private void sendMessage(String message) throws Exception {
         outStream.write((message + "\n").getBytes("UTF-8"));

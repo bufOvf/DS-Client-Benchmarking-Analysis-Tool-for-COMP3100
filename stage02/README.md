@@ -15,6 +15,9 @@ For example:
 ```
 python3 ./s2_test.py "java MyClient" -n -r results/ref_results.json
 ```
+
+---
+
 To compile and test the dsClient example, use:
 ```
 javac dsClient.java && python3 ./s2_test.py "java dsClient" -n -r results/ref_results.json

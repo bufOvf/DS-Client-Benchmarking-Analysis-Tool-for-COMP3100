@@ -1,113 +1,139 @@
-import java.io.*;
 import java.net.*;
+import java.io.*;
 
-public class dsclient {
-    public static void main(String[] args) {
+// Distributed System Client Class
+public class dsClient {
+    // Network and I/O variables
+    private Socket clientSocket;
+    private DataOutputStream outStream;
+    private BufferedReader inStream;
 
-        try {
-            // Establish a socket connection to the server-side simulator
-            Socket socket = new Socket("localhost", 50000);
-            // Set up input and output streams for the socket
-            DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
-            BufferedReader inputStream = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    // State and job related variables
+    private int serverCount = 0;
+    private int jobCounter = 0;
 
-            // Connect to the data server
-            // Send HELO message to initiate communication
-            outputStream.write(("HELO\n").getBytes());
-            outputStream.flush();
-            String receivedMsg = (String) inputStream.readLine();
+    private String serverMessage = "";
+    private String numRecordsString = "";
+    private String currentJobType = "";
+    private String serverLoopMsg = "";
+    private String optimalServerType = "";
+    private String optimalServerID = "";
 
-            // Send AUTH username to authenticate the client
-            String userName = System.getProperty("user.name");
-            outputStream.write(("AUTH " + userName + "\n").getBytes());
-            outputStream.flush();
-            receivedMsg = (String) inputStream.readLine();
+    private String[] jobTypeArray;
+    private String[] recordsArray;
+    private String[] optimalServerArray;
 
-            // Variables for finding the server type and ID with the most cores
-            int maxCores = 0;
-            int serverCount = 0;
-            String largestServerType = "";
-            boolean firstTime = true;
-            int currServer = 0;
+    // Constructor establishes connection to server
+    public dsClient(String address, int port) throws Exception {
+        clientSocket = new Socket(address, port);
+        outStream = new DataOutputStream(clientSocket.getOutputStream());
+        inStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+    }
 
-            while (true) {  
-                // Send REDY message to receive the next job from the server
-                outputStream.write(("REDY\n").getBytes());
-                outputStream.flush();
-                receivedMsg = inputStream.readLine();
+    public static void main(String[] args) throws Exception {
+        dsClient client = new dsClient("localhost", 50000);
+        client.executeClient();
+        client.close();
+    }
 
-                // If the job type is NONE, there are no more jobs and the loop should be exited
-                if (receivedMsg.equals("NONE"))
-                    break; // Exit the loop
+    public void close() throws Exception {
+        clientSocket.close();
+        inStream.close();
+        outStream.close();
+    }
 
-                // Get the job type and ID from the received message
-                String[] jobData = receivedMsg.split(" ");
-                String jobType = jobData[0];
-                String jobId = jobData[2];
+    public void executeClient() throws Exception {
+        handshakeAndAuth();
+        jobHandler();
+    }
 
-                // If the job type is JCPL, continue to the next iteration
-                if (jobType.equals("JCPL")) // JCPL - provide the information on most recent job completion
-                    continue; // Ignore the message and continue to the next iteration
+    private void handshakeAndAuth() throws Exception {
+        sendMessage("HELO");  // initial handshake
+        serverMessage = read();  // server response
 
-                // Request server information from the server-side simulator for the first job
-                if (firstTime) {
-                    outputStream.write(("GETS All\n").getBytes()); // GETS - request information on all servers
-                    outputStream.flush();
-                    receivedMsg = (String) inputStream.readLine();
+        // authentication
+        String clientUsername = System.getProperty("user.name");
+        sendMessage("AUTH " + clientUsername);
+        serverMessage = read();  // server response
+    }
 
-                    outputStream.write(("OK\n").getBytes());
-                    outputStream.flush();
+    private void jobHandler() throws Exception {
+        // Job handling loop
+        while (!currentJobType.equals("NONE")) {
+            handleJob();
+        }
 
-                    String[] serverListInfo = receivedMsg.split(" ");
-                    int numServers = Integer.parseInt(serverListInfo[1]);
+        // All jobs handled, send quit signal to server
+        sendMessage("QUIT");
+        read();
+    }
 
-                    // Iterate through the server list and find the largest server type
-                    for (int i = 0; i < numServers; i++) {
-                        receivedMsg = (String) inputStream.readLine();
+    private void handleJob() throws Exception {
+        sendMessage("REDY");  // ready for new job
+        serverLoopMsg = read();
+        jobTypeArray = serverLoopMsg.split(" ");
+        currentJobType = jobTypeArray[0];
 
-                        // Find the largest server type and ID (LRR scheduling - Largest server, Round robin)
-                        String[] serverData = receivedMsg.split(" ");
-                        String serverType = serverData[0];
-                        int coreCount = Integer.parseInt(serverData[4]);
-
-                        if (coreCount > maxCores) {
-                            largestServerType = serverType;
-                            maxCores = coreCount;
-                            serverCount = 1;
-                        } else if (serverType.equals(largestServerType)) {
-                            serverCount++;
-                        }
-                    }
-
-                    outputStream.write(("OK\n").getBytes());
-                    outputStream.flush();
-                    receivedMsg = (String) inputStream.readLine();
-                }
-                firstTime = false;
-
-                // Schedule the job if it's a JOBN type
-                if (jobType.equals("JOBN")) {
-                    // Send SCHD message to schedule the job on the server with the largest core count
-                    String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n"; // SCHD - schedule a job on a server
-                    outputStream.write(scheduleMsg.getBytes());
-
-                    outputStream.flush();
-                    currServer++;
-                    currServer = currServer % serverCount;
-                    receivedMsg = inputStream.readLine();
-                }
+        if (!jobCompleteOrNone()) {
+            manageJobAvailability();
+            if (serverCount != 0) {
+                processServerAvailability();
+            } else {
+                manageJobCapability();
+                processServerAvailability();
             }
 
-            // Terminate the simulation gracefully by sending the QUIT message
-            outputStream.write(("QUIT\n").getBytes());
-            outputStream.flush(); // Immediately write the message to the output stream
-            receivedMsg = inputStream.readLine();
-
-            inputStream.close();
-            outputStream.close();
-            socket.close();
-        } catch (Exception e) {
-            System.out.println(e);
+            if (currentJobType.equals("JOBN")) {
+                scheduleJob();
+            }
         }
+    }
+
+    private boolean jobCompleteOrNone() {
+        return currentJobType.equals("JCPL") || currentJobType.equals("NONE");
+    }
+
+    private void manageJobAvailability() throws Exception {
+        sendMessage("GETS Avail " + jobTypeArray[4] + " " + jobTypeArray[5] + " " + jobTypeArray[6]);
+        numRecordsString = read();
+        recordsArray = numRecordsString.split(" ");
+        serverCount = Integer.parseInt(recordsArray[1]);
+        sendMessage("OK");
+    }
+
+    private void manageJobCapability() throws Exception {
+        read();
+        sendMessage("GETS Capable " + jobTypeArray[4] + " " + jobTypeArray[5] + " " + jobTypeArray[6]);
+        numRecordsString = read();
+        recordsArray = numRecordsString.split(" ");
+        serverCount = Integer.parseInt(recordsArray[1]);
+        sendMessage("OK");
+    }
+
+    private void processServerAvailability() throws Exception {
+        serverMessage = read();
+        optimalServerArray = serverMessage.split(" ");
+        optimalServerType = optimalServerArray[0];
+        optimalServerID = optimalServerArray[1];
+
+        for (int i = 0; i < serverCount - 1; i++) {
+            read();
+        }
+        sendMessage("OK");
+        read();
+    }
+
+    private void scheduleJob() throws Exception {
+        sendMessage("SCHD " + jobCounter + " " + optimalServerType + " " + optimalServerID);
+        read();
+        jobCounter++;
+    }
+
+    private void sendMessage(String message) throws Exception {
+        outStream.write((message + "\n").getBytes("UTF-8"));
+    }
+
+    private String read() throws Exception {
+        return inStream.readLine();
     }
 }

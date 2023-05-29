@@ -1,3 +1,5 @@
+
+
 # Running the script
 Ensure that ds-server, ds-client, and your client are in this directory.
 Run `s2_test.py`, passing the command to run your client as a string and -n if your client uses newline-terminated messages (i.e. Java clients).
@@ -6,7 +8,6 @@ For example:
 ```
 python3 ./s2_test.py "java MyClient" -n -c S2TestConfigs
 ```
-
 This script may take a long time to complete as it needs to collect results from the reference client with the relevant algorithms.
 These results are stored in `results/ref_results.json`.
 Reference result collection can be skipped with -r, specifying the path to a reference results file that has already been generated.
@@ -14,9 +15,9 @@ For example:
 ```
 python3 ./s2_test.py "java MyClient" -n -r results/ref_results.json
 ```
->>>> 
+To compile and test the dsClient example, use:
 ```
-javac dsclient.java && python3 ./s2_test.py "java dsclient" -n -r results/ref_results.json
+javac dsClient.java && python3 ./s2_test.py "java dsClient" -n -r results/ref_results.json
 ```
 
 # Output explanation

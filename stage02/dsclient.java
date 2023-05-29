@@ -65,7 +65,7 @@ public class dsclient {
                     for (int i = 0; i < numServers; i++) {
                         receivedMsg = (String) inputStream.readLine();
 
-                        // Find the largest server type and ID
+                        // Find the largest server type and ID (LRR scheduling - Largest server, Round robin)
                         String[] serverData = receivedMsg.split(" ");
                         String serverType = serverData[0];
                         int coreCount = Integer.parseInt(serverData[4]);
@@ -91,7 +91,7 @@ public class dsclient {
                     String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n"; // SCHD - schedule a job on a server
                     outputStream.write(scheduleMsg.getBytes());
 
-                    outputStream.flush(); //
+                    outputStream.flush();
                     currServer++;
                     currServer = currServer % serverCount;
                     receivedMsg = inputStream.readLine();

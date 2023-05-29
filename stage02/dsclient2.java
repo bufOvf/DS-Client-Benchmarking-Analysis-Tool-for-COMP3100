@@ -1,7 +1,9 @@
 import java.io.*;
 import java.net.*;
+import java.util.PriorityQueue;
+import java.util.Comparator;
 
-public class dsclient {
+public class dsclient2 {
     public static void main(String[] args) {
 
         try {
@@ -30,7 +32,10 @@ public class dsclient {
             boolean firstTime = true;
             int currServer = 0;
 
-            while (true) {  
+            // Create a PriorityQueue to store jobs based on their estimated runtime
+            PriorityQueue<String[]> jobQueue = new PriorityQueue<>(Comparator.comparingInt(job -> Integer.parseInt(job[3])));
+
+            while (true) {
                 // Send REDY message to receive the next job from the server
                 outputStream.write(("REDY\n").getBytes());
                 outputStream.flush();
@@ -49,6 +54,11 @@ public class dsclient {
                 if (jobType.equals("JCPL")) // JCPL - provide the information on most recent job completion
                     continue; // Ignore the message and continue to the next iteration
 
+                // Add the job to the queue
+                if (jobType.equals("JOBN")) {
+                    jobQueue.add(jobData);
+                }
+
                 // Request server information from the server-side simulator for the first job
                 if (firstTime) {
                     outputStream.write(("GETS All\n").getBytes()); // GETS - request information on all servers
@@ -65,7 +75,7 @@ public class dsclient {
                     for (int i = 0; i < numServers; i++) {
                         receivedMsg = (String) inputStream.readLine();
 
-                        // Find the largest server type and ID
+                        // Find the largest server type and ID (LRR scheduling - Largest server, Round robin)
                         String[] serverData = receivedMsg.split(" ");
                         String serverType = serverData[0];
                         int coreCount = Integer.parseInt(serverData[4]);
@@ -84,18 +94,21 @@ public class dsclient {
                     receivedMsg = (String) inputStream.readLine();
                 }
                 firstTime = false;
+            }
 
-                // Schedule the job if it's a JOBN type
-                if (jobType.equals("JOBN")) {
-                    // Send SCHD message to schedule the job on the server with the largest core count
-                    String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n"; // SCHD - schedule a job on a server
-                    outputStream.write(scheduleMsg.getBytes());
+            // Schedule the jobs from the sorted queue
+            while (!jobQueue.isEmpty()) {
+                String[] jobData = jobQueue.poll();
+                String jobId = jobData[2];
 
-                    outputStream.flush(); //
-                    currServer++;
-                    currServer = currServer % serverCount;
-                    receivedMsg = inputStream.readLine();
-                }
+                // Send SCHD message to schedule the job on the server with the largest core count
+                String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n"; // SCHD - schedule a job on a server
+                outputStream.write(scheduleMsg.getBytes());
+
+                outputStream.flush();
+                currServer++;
+                currServer = currServer % serverCount;
+                receivedMsg = inputStream.readLine();
             }
 
             // Terminate the simulation gracefully by sending the QUIT message

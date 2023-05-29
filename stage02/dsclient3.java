@@ -1,8 +1,15 @@
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
-public class dsclient {
+public class dsclient3 {
     public static void main(String[] args) {
+
+        // Create a PriorityQueue to hold the jobs, sorted by their estimated run time and the number of required CPU cores
+        PriorityQueue<String[]> jobQueue = new PriorityQueue<>(
+            Comparator.comparingInt((String[] job) -> Integer.parseInt(job[4])) // Compare based on estimated run time
+                    .thenComparingInt(job -> Integer.parseInt(job[5])) // Then compare based on the number of required CPU cores
+        );
 
         try {
             // Establish a socket connection to the server-side simulator
@@ -30,7 +37,9 @@ public class dsclient {
             boolean firstTime = true;
             int currServer = 0;
 
-            while (true) {  
+
+
+            while (true) {
                 // Send REDY message to receive the next job from the server
                 outputStream.write(("REDY\n").getBytes());
                 outputStream.flush();
@@ -87,14 +96,23 @@ public class dsclient {
 
                 // Schedule the job if it's a JOBN type
                 if (jobType.equals("JOBN")) {
-                    // Send SCHD message to schedule the job on the server with the largest core count
-                    String scheduleMsg = "SCHD " + jobId + " " + largestServerType + " " + currServer + "\n"; // SCHD - schedule a job on a server
-                    outputStream.write(scheduleMsg.getBytes());
+                    // Add the job to the PriorityQueue
+                    jobQueue.add(jobData);
 
-                    outputStream.flush(); //
-                    currServer++;
-                    currServer = currServer % serverCount;
-                    receivedMsg = inputStream.readLine();
+                    // If there are jobs in the queue, schedule the one with the shortest estimated run time and the least number of required CPU cores
+                    if (!jobQueue.isEmpty()) {
+                        String[] shortestJob = jobQueue.poll(); // Remove and return the shortest job
+                        String shortestJobId = shortestJob[2];
+
+                        // Send SCHD message to schedule the job on the server with the largest core count
+                        String scheduleMsg = "SCHD " + shortestJobId + " " + largestServerType + " " + currServer + "\n"; // SCHD - schedule a job on a server
+                        outputStream.write(scheduleMsg.getBytes());
+
+                        outputStream.flush(); //
+                        currServer++;
+                        currServer = currServer % serverCount;
+                        receivedMsg = inputStream.readLine();
+                    }
                 }
             }
 

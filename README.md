@@ -1,5 +1,6 @@
 # comp3100-project
 
+## stage 1
 Testing dsclient with S1Tests-wk6.sh:
 - run in "stage01" directory
 
@@ -70,3 +71,5 @@ Begin
 End
 
 ```
+
+## stage 2

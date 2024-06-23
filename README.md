@@ -1,4 +1,4 @@
-# DS-Client Benchmarking Analysis Tool for COMP3100
+# DS-Client Benchmarking Analysis Tool
 
 This repository contains a the DS-Client Project for COMP3100 aimed at testing and analyzing the performance of a distributed systems client (DS-Client) in various simulated environments. The project is structured into multiple stages, with each stage focusing on different aspects of benchmarking and analysis.
 
